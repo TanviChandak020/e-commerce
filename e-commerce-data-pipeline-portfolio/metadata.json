@@ -1,0 +1,5 @@
+{
+  "name": "E-Commerce Data Pipeline Portfolio",
+  "description": "A comprehensive end-to-end data engineering project showcasing AWS, Snowflake, dbt, and Airflow integration.",
+  "requestFramePermissions": []
+}

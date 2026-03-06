@@ -1,0 +1,32 @@
+version: 2
+
+sources:
+  - name: raw
+    database: ECOM_DB
+    schema: RAW
+    tables:
+      - name: orders_raw
+      - name: inventory_raw
+
+models:
+  - name: stg_orders
+    description: "Staging table for orders data"
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+
+  - name: fact_orders
+    description: "Fact table for orders with revenue calculations"
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: total_revenue
+        tests:
+          - not_null
