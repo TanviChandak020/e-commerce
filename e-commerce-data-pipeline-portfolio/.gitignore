@@ -62,8 +62,15 @@ local_data/
 
 # Airflow
 airflow.db*
+airflow.cfg
 logs/
 .airflow/
+airflow/
+*.log
+~/airflow
+webserver_config.py
+unittests.cfg
+standalone_admin_password.txt
 
 # dbt
 pipeline/dbt/target/
