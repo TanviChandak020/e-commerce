@@ -6,6 +6,7 @@ import glob
 import boto3
 from io import BytesIO
 import tempfile
+import subprocess
 
 def create_spark_session():
     return SparkSession.builder \
@@ -48,7 +49,7 @@ def upload_to_s3(s3_client, bucket, local_path, s3_key):
         raise
 
 def transform_orders(spark, raw_path, processed_path):
-    """Transform raw orders data"""
+    """Transform raw orders data - handles both FakeStore and DummyJSON formats"""
     try:
         print(f"Reading orders from: {raw_path}")
         
@@ -59,15 +60,32 @@ def transform_orders(spark, raw_path, processed_path):
         df = spark.read.parquet(raw_path)
         print(f"✅ Loaded {df.count()} orders")
         
-        # Flatten products array
-        df_flattened = df.withColumn("product", explode(col("products"))) \
-            .select(
-                col("id").alias("order_id"),
-                col("userId").alias("customer_id"),
-                to_date(col("date")).alias("order_date"),
-                col("product.productId").alias("product_id"),
-                col("product.quantity").alias("quantity")
-            )
+        # Check schema to determine format
+        schema_str = str(df.schema)
+        is_dummyjson = "discountedTotal" in schema_str or "discountPercentage" in schema_str
+        
+        if is_dummyjson:
+            print("🔎 Detected DummyJSON format")
+            # DummyJSON: products array has {id, title, price, quantity, thumbnail, discountPercentage, discountedTotal, total}
+            df_flattened = df.withColumn("product", explode(col("products"))) \
+                .select(
+                    col("id").alias("order_id"),
+                    col("userId").alias("customer_id"),
+                    col("date").alias("order_date"),
+                    col("product.id").alias("product_id"),
+                    col("product.quantity").alias("quantity")
+                )
+        else:
+            print("🔎 Detected FakeStore format")
+            # FakeStore: products array has {productId, quantity}
+            df_flattened = df.withColumn("product", explode(col("products"))) \
+                .select(
+                    col("id").alias("order_id"),
+                    col("userId").alias("customer_id"),
+                    to_date(col("date")).alias("order_date"),
+                    col("product.productId").alias("product_id"),
+                    col("product.quantity").alias("quantity")
+                )
         
         df_final = df_flattened.withColumn("processed_at", current_timestamp())
         
@@ -76,6 +94,8 @@ def transform_orders(spark, raw_path, processed_path):
         print(f"✅ Transformed orders written to {processed_path}")
     except Exception as e:
         print(f"⚠️  Error transforming orders: {e}")
+        import traceback
+        traceback.print_exc()
         raise
 
 def transform_inventory(spark, raw_path, processed_path):
@@ -122,28 +142,45 @@ def main():
             raw_orders_key = f"raw/orders/"
             orders_file = download_from_s3(s3_client, S3_RAW_BUCKET, raw_orders_key)
             if orders_file:
-                transform_orders(spark, orders_file, "data/processed/orders")
-                # Upload processed orders
-                processed_orders_file = "data/processed/orders/part-00000.parquet"
-                if os.path.exists(processed_orders_file):
-                    upload_to_s3(s3_client, S3_PROCESSED_BUCKET, processed_orders_file, "processed/orders/orders.parquet")
-                os.remove(orders_file)
+                try:
+                    transform_orders(spark, orders_file, "data/processed/orders")
+                    # Upload processed orders
+                    result = subprocess.run(['find', 'data/processed/orders', '-name', 'part-*.parquet'], 
+                                          capture_output=True, text=True)
+                    if result.stdout.strip():
+                        processed_file = result.stdout.strip().split('\n')[0]
+                        upload_to_s3(s3_client, S3_PROCESSED_BUCKET, processed_file, "processed/orders/orders.parquet")
+                except Exception as e:
+                    print(f"⚠️  Error with orders: {e}")
+                finally:
+                    if os.path.exists(orders_file):
+                        os.remove(orders_file)
             
             # Download and transform products (saved as inventory)
             raw_products_key = f"raw/products/"
             products_file = download_from_s3(s3_client, S3_RAW_BUCKET, raw_products_key)
             if products_file:
-                # For products, we just add timestamp
-                df_products = spark.read.parquet(products_file)
-                df_products_final = df_products.withColumn("processed_at", current_timestamp())
-                os.makedirs("data/processed/products", exist_ok=True)
-                df_products_final.write.mode("overwrite").parquet("data/processed/products")
-                print(f"✅ Transformed products written to data/processed/products")
-                # Upload processed products
-                processed_products_file = "data/processed/products/part-00000.parquet"
-                if os.path.exists(processed_products_file):
-                    upload_to_s3(s3_client, S3_PROCESSED_BUCKET, processed_products_file, "processed/products/products.parquet")
-                os.remove(products_file)
+                try:
+                    # For products, we just add timestamp
+                    df_products = spark.read.parquet(products_file)
+                    print(f"✅ Loaded {df_products.count()} products")
+                    df_products_final = df_products.withColumn("processed_at", current_timestamp())
+                    os.makedirs("data/processed/products", exist_ok=True)
+                    df_products_final.write.mode("overwrite").parquet("data/processed/products")
+                    print(f"✅ Transformed products written to data/processed/products")
+                    
+                    # Upload processed products
+                    import subprocess
+                    result = subprocess.run(['find', 'data/processed/products', '-name', 'part-*.parquet'], 
+                                          capture_output=True, text=True)
+                    if result.stdout.strip():
+                        processed_file = result.stdout.strip().split('\n')[0]
+                        upload_to_s3(s3_client, S3_PROCESSED_BUCKET, processed_file, "processed/products/products.parquet")
+                except Exception as e:
+                    print(f"⚠️  Error transforming products: {e}")
+                finally:
+                    if os.path.exists(products_file):
+                        os.remove(products_file)
         
         else:
             print(f"\n🔄 Using local filesystem for data transformation...\n")
