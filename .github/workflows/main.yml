@@ -193,7 +193,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install -r requirements.txt
+          pip install --upgrade cryptography pyarrow
+          pip install -r requirements.txt --no-cache-dir
       
       - name: Load data to Snowflake
         env:
@@ -258,7 +259,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install -r requirements.txt
+          pip install --upgrade cryptography pyarrow
+          pip install -r requirements.txt --no-cache-dir
       
       - name: Set up dbt profiles
         env:
