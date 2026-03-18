@@ -120,11 +120,21 @@ def upload_to_s3(df, bucket, key):
 def main():
     # Configuration
     S3_BUCKET = os.getenv('S3_RAW_BUCKET', '').strip()
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '').strip()
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '').strip()
+    AWS_REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1').strip()
     date_str = datetime.now().strftime("%Y/%m/%d")
     
     print("=" * 70)
     print("🔄 E-Commerce Data Ingestion")
     print("=" * 70)
+    
+    # Debug: Show configuration
+    print("\n🔍 Configuration Check:")
+    print(f"   S3_RAW_BUCKET: {'SET' if S3_BUCKET else '❌ NOT SET'}")
+    print(f"   AWS_ACCESS_KEY_ID: {'SET' if AWS_ACCESS_KEY_ID else '❌ NOT SET'}")
+    print(f"   AWS_SECRET_ACCESS_KEY: {'SET' if AWS_SECRET_ACCESS_KEY else '❌ NOT SET'}")
+    print(f"   AWS_DEFAULT_REGION: {AWS_REGION if AWS_REGION else '❌ NOT SET'}")
     
     # Fetch products with fallback
     print("\n📦 Fetching products...")
@@ -157,39 +167,66 @@ def main():
     print(f"✅ Fetched {len(df_carts)} carts/orders")
     
     # Save to S3 or local storage
-    print(f"\n🗄️  Storage Configuration: S3_RAW_BUCKET={'SET' if S3_BUCKET else 'NOT SET'}")
+    print(f"\n🗄️  Storage Decision:")
     
-    if S3_BUCKET:
-        try:
-            s3 = boto3.client('s3')
-            
-            # Upload products
-            temp_path = "/tmp/products.parquet"
-            df_products.to_parquet(temp_path, index=False)
-            s3.upload_file(temp_path, S3_BUCKET, f"raw/products/{date_str}/products.parquet")
-            os.remove(temp_path)
-            print(f"✅ Uploaded products to S3: s3://{S3_BUCKET}/raw/products/{date_str}/products.parquet")
-            
-            # Upload carts
-            temp_path = "/tmp/orders.parquet"
-            df_carts.to_parquet(temp_path, index=False)
-            s3.upload_file(temp_path, S3_BUCKET, f"raw/orders/{date_str}/orders.parquet")
-            os.remove(temp_path)
-            print(f"✅ Uploaded carts to S3: s3://{S3_BUCKET}/raw/orders/{date_str}/orders.parquet")
-        except Exception as e:
-            print(f"⚠️  S3 upload failed: {e}. Saving locally instead...")
-            os.makedirs("data/raw/products", exist_ok=True)
-            df_products.to_parquet("data/raw/products/products.parquet", index=False)
-            os.makedirs("data/raw/orders", exist_ok=True)
-            df_carts.to_parquet("data/raw/orders/orders.parquet", index=False)
-            print(f"✅ Saved locally to data/raw/")
-    else:
-        print("→ Saving to local filesystem...")
+    if not S3_BUCKET:
+        print("   → S3_RAW_BUCKET not set. Using local storage only.")
         os.makedirs("data/raw/products", exist_ok=True)
         df_products.to_parquet("data/raw/products/products.parquet", index=False)
         os.makedirs("data/raw/orders", exist_ok=True)
         df_carts.to_parquet("data/raw/orders/orders.parquet", index=False)
         print(f"✅ Saved locally to data/raw/")
+        return
+    
+    if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
+        print("   → AWS credentials not set. Using local storage only.")
+        os.makedirs("data/raw/products", exist_ok=True)
+        df_products.to_parquet("data/raw/products/products.parquet", index=False)
+        os.makedirs("data/raw/orders", exist_ok=True)
+        df_carts.to_parquet("data/raw/orders/orders.parquet", index=False)
+        print(f"✅ Saved locally to data/raw/")
+        return
+    
+    # Try S3 upload
+    print(f"   → Uploading to S3 bucket: {S3_BUCKET}")
+    try:
+        s3 = boto3.client('s3', region_name=AWS_REGION)
+        
+        # Test S3 access
+        try:
+            s3.head_bucket(Bucket=S3_BUCKET)
+            print(f"   ✅ S3 bucket '{S3_BUCKET}' is accessible")
+        except Exception as e:
+            print(f"   ❌ Cannot access S3 bucket '{S3_BUCKET}': {e}")
+            print(f"      Falling back to local storage...")
+            raise e
+        
+        # Upload products
+        print(f"\n   Uploading products...")
+        products_key = f"raw/products/{date_str}/products.parquet"
+        temp_path = "/tmp/products.parquet"
+        df_products.to_parquet(temp_path, index=False)
+        s3.upload_file(temp_path, S3_BUCKET, products_key)
+        os.remove(temp_path)
+        print(f"   ✅ Uploaded: s3://{S3_BUCKET}/{products_key}")
+        
+        # Upload carts
+        print(f"   Uploading carts...")
+        carts_key = f"raw/orders/{date_str}/orders.parquet"
+        temp_path = "/tmp/orders.parquet"
+        df_carts.to_parquet(temp_path, index=False)
+        s3.upload_file(temp_path, S3_BUCKET, carts_key)
+        os.remove(temp_path)
+        print(f"   ✅ Uploaded: s3://{S3_BUCKET}/{carts_key}")
+        
+    except Exception as e:
+        print(f"\n   ⚠️  S3 upload failed: {e}")
+        print(f"      Falling back to local storage...")
+        os.makedirs("data/raw/products", exist_ok=True)
+        df_products.to_parquet("data/raw/products/products.parquet", index=False)
+        os.makedirs("data/raw/orders", exist_ok=True)
+        df_carts.to_parquet("data/raw/orders/orders.parquet", index=False)
+        print(f"   ✅ Saved locally to data/raw/")
     
     print("\n" + "=" * 70)
     print("✨ Data ingestion complete!")

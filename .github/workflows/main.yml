@@ -82,6 +82,17 @@ jobs:
         run: |
           export PYTHONPATH=${{ github.workspace }}/e-commerce-data-pipeline-portfolio/pipeline:$PYTHONPATH
           python e-commerce-data-pipeline-portfolio/pipeline/ingestion/fetch_api_data.py
+      
+      - name: Debug - Show created files
+        run: |
+          echo "📁 Checking for locally created data files:"
+          find data/ -type f -name "*.parquet" 2>/dev/null || echo "   No local parquet files found"
+          echo ""
+          echo "🔍 Environment variables (secrets):"
+          echo "   S3_RAW_BUCKET: ${{ secrets.S3_RAW_BUCKET != '' && '✅ SET' || '❌ NOT SET' }}"
+          echo "   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID != '' && '✅ SET' || '❌ NOT SET' }}"
+          echo "   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY != '' && '✅ SET' || '❌ NOT SET' }}"
+          echo "   AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION != '' && secrets.AWS_DEFAULT_REGION || '❌ NOT SET' }}"
 
   ingest-inventory:
     runs-on: ubuntu-latest
