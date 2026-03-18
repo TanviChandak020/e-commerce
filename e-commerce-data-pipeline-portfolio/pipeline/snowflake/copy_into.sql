@@ -1,14 +1,25 @@
 -- COPY INTO script for loading Parquet from S3
--- This script is typically executed by Airflow's SnowflakeOperator
+-- Load processed data from S3 into Snowflake raw tables
 
--- Load Orders
+-- Create or use existing S3 integration (assumes it's already configured)
+-- For this to work, S3 integration and stage must be configured in Snowflake
+
+-- Load Orders from processed S3 location
 COPY INTO ECOM_DB.RAW.ORDERS_RAW
-FROM @ECOM_DB.RAW.S3_PROCESSED_STAGE/processed/orders/
+FROM 's3://' || :s3_bucket || '/processed/orders/'
+CREDENTIALS = (
+  AWS_KEY_ID = :aws_key
+  AWS_SECRET_KEY = :aws_secret
+)
 FILE_FORMAT = (TYPE = 'PARQUET')
 MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
 
--- Load Inventory
-COPY INTO ECOM_DB.RAW.INVENTORY_RAW
-FROM @ECOM_DB.RAW.S3_PROCESSED_STAGE/processed/inventory/
+-- Load Products from processed S3 location  
+COPY INTO ECOM_DB.RAW.PRODUCTS_RAW
+FROM 's3://' || :s3_bucket || '/processed/products/'
+CREDENTIALS = (
+  AWS_KEY_ID = :aws_key
+  AWS_SECRET_KEY = :aws_secret
+)
 FILE_FORMAT = (TYPE = 'PARQUET')
 MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;

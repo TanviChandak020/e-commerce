@@ -212,50 +212,10 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-          S3_RAW_BUCKET: ${{ secrets.S3_RAW_BUCKET }}
+          S3_PROCESSED_BUCKET: ${{ secrets.S3_PROCESSED_BUCKET }}
         run: |
-          if [ -z "$SNOWFLAKE_USER" ]; then
-            echo "⚠️  Skipped: Snowflake secrets not configured"
-            exit 0
-          fi
           export PYTHONPATH=${{ github.workspace }}/e-commerce-data-pipeline-portfolio/pipeline:$PYTHONPATH
-          python -c "
-          import snowflake.connector
-          import os
-          
-          # Strip whitespace from all credentials (fixes newline issues)
-          user = os.getenv('SNOWFLAKE_USER', '').strip()
-          password = os.getenv('SNOWFLAKE_PASSWORD', '').strip()
-          account = os.getenv('SNOWFLAKE_ACCOUNT', '').strip()
-          warehouse = os.getenv('SNOWFLAKE_WAREHOUSE', '').strip()
-          database = os.getenv('SNOWFLAKE_DATABASE', '').strip()
-          
-          if not all([user, password, account, warehouse, database]):
-            print('⚠️  Snowflake credentials incomplete or not configured. Skipping.')
-            exit(0)
-          
-          try:
-            print(f'Connecting to Snowflake: {account}...')
-            conn = snowflake.connector.connect(
-                user=user,
-                password=password,
-                account=account,
-                warehouse=warehouse,
-                database=database
-            )
-            print('✅ Connected to Snowflake')
-            cursor = conn.cursor()
-            with open('e-commerce-data-pipeline-portfolio/pipeline/snowflake/copy_into.sql', 'r') as f:
-                sql = f.read()
-            cursor.execute(sql)
-            print('✅ Data loaded to Snowflake')
-            cursor.close()
-            conn.close()
-          except Exception as e:
-            print(f'❌ Snowflake load failed: {e}')
-            print('   This is expected if Snowflake is not accessible or credentials are invalid')
-            exit(0)
-          "
+          python e-commerce-data-pipeline-portfolio/pipeline/snowflake/load_to_snowflake.py
 
   dbt-models:
     runs-on: ubuntu-latest
