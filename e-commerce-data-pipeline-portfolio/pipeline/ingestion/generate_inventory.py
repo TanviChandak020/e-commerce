@@ -31,15 +31,15 @@ def main() -> None:
     """Generate and upload inventory data to S3."""
     S3_BUCKET = os.getenv('S3_RAW_BUCKET', '').strip()
     date_str = datetime.now().strftime("%Y/%m/%d")
-    
+
     print("Generating inventory feed...")
     df_inventory = generate_inventory_data()
     print(f"✅ Generated {len(df_inventory)} inventory records")
-    
+
     # Save as CSV for the "CSV Source" requirement
     temp_path = "/tmp/inventory_feed.csv"
     df_inventory.to_csv(temp_path, index=False)
-    
+
     if not S3_BUCKET:
         print("⚠️  S3_RAW_BUCKET not configured. Saving locally instead.")
         local_dir = "data/raw/inventory"
@@ -50,7 +50,7 @@ def main() -> None:
         if os.path.exists(temp_path):
             os.remove(temp_path)
         return
-    
+
     try:
         s3 = boto3.client('s3')
         s3.upload_file(temp_path, S3_BUCKET, f"raw/inventory/{date_str}/inventory.csv")

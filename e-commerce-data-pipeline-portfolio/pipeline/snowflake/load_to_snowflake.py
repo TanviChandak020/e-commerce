@@ -15,28 +15,28 @@ def load_to_snowflake() -> bool:
         True if successful or if credentials are missing (graceful exit),
         raises exception if actual error occurs.
     """
-    
+
     # Get Snowflake credentials
     user = os.getenv('SNOWFLAKE_USER', '').strip()
     password = os.getenv('SNOWFLAKE_PASSWORD', '').strip()
     account = os.getenv('SNOWFLAKE_ACCOUNT', '').strip()
     warehouse = os.getenv('SNOWFLAKE_WAREHOUSE', '').strip()
     database = os.getenv('SNOWFLAKE_DATABASE', '').strip()
-    
+
     # Get AWS credentials
     s3_bucket = os.getenv('S3_PROCESSED_BUCKET', '').strip()
     aws_key = os.getenv('AWS_ACCESS_KEY_ID', '').strip()
     aws_secret = os.getenv('AWS_SECRET_ACCESS_KEY', '').strip()
     aws_region = os.getenv('AWS_DEFAULT_REGION', 'us-east-1').strip()
-    
+
     if not all([user, password, account, warehouse, database]):
         print('⚠️  Snowflake credentials incomplete. Skipping Snowflake load.')
         return True
-    
+
     if not all([s3_bucket, aws_key, aws_secret]):
         print('⚠️  AWS credentials or S3 bucket incomplete. Skipping Snowflake load.')
         return True
-    
+
     try:
         print(f"🔄 Connecting to Snowflake: {account}...")
         conn = snowflake.connector.connect(
@@ -48,13 +48,13 @@ def load_to_snowflake() -> bool:
             region=aws_region
         )
         print("✅ Connected to Snowflake")
-        
+
         cursor = conn.cursor()
-        
+
         # Create raw schema if not exists
         print("📋 Creating schema...")
         cursor.execute("CREATE SCHEMA IF NOT EXISTS RAW")
-        
+
         # Create tables
         print("📋 Creating tables...")
         cursor.execute("""
@@ -67,7 +67,7 @@ def load_to_snowflake() -> bool:
                 processed_at TIMESTAMP
             )
         """)
-        
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS RAW.PRODUCTS_RAW (
                 id INTEGER,
@@ -80,7 +80,7 @@ def load_to_snowflake() -> bool:
                 processed_at TIMESTAMP
             )
         """)
-        
+
         # Load Orders
         print("📥 Loading orders from S3...")
         copy_orders = f"""
@@ -95,7 +95,7 @@ def load_to_snowflake() -> bool:
         """
         cursor.execute(copy_orders)
         print("✅ Orders loaded successfully")
-        
+
         # Load Products
         print("📥 Loading products from S3...")
         copy_products = f"""
@@ -110,24 +110,24 @@ def load_to_snowflake() -> bool:
         """
         cursor.execute(copy_products)
         print("✅ Products loaded successfully")
-        
+
         # Verify data
         cursor.execute("SELECT COUNT(*) FROM RAW.ORDERS_RAW")
         orders_count = cursor.fetchone()[0]
-        
+
         cursor.execute("SELECT COUNT(*) FROM RAW.PRODUCTS_RAW")
         products_count = cursor.fetchone()[0]
-        
+
         print("\n📊 Data Summary:")
         print(f"   Orders: {orders_count} rows")
         print(f"   Products: {products_count} rows")
-        
+
         cursor.close()
         conn.close()
-        
+
         print("\n✨ Snowflake data load complete!")
         return True
-        
+
     except Exception as e:
         print(f"❌ Snowflake load failed: {e}")
         print("   This is expected if Snowflake is not accessible or credentials are invalid")

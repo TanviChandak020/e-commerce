@@ -1,7 +1,7 @@
 import os
 import time
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 import boto3
 import pandas as pd
@@ -15,7 +15,7 @@ HEADERS = {
     'Referer': 'https://www.google.com/',
 }
 
-def fetch_fakestore_products(max_retries: int = 3) -> Optional[list[dict[str, Any]]]:
+def fetch_fakestore_products(max_retries: int = 3) -> list[dict[str, Any]] | None:
     """Fetch products from FakeStoreAPI with retry logic.
 
     Args:
@@ -25,7 +25,7 @@ def fetch_fakestore_products(max_retries: int = 3) -> Optional[list[dict[str, An
         List of product dictionaries or None if all attempts fail.
     """
     url = "https://fakestoreapi.com/products"
-    
+
     for attempt in range(max_retries):
         try:
             response = requests.get(url, headers=HEADERS, timeout=10)
@@ -38,7 +38,7 @@ def fetch_fakestore_products(max_retries: int = 3) -> Optional[list[dict[str, An
                 time.sleep(wait_time)
     return None
 
-def fetch_fakestore_carts(max_retries: int = 3) -> Optional[list[dict[str, Any]]]:
+def fetch_fakestore_carts(max_retries: int = 3) -> list[dict[str, Any]] | None:
     """Fetch carts/orders from FakeStoreAPI with retry logic.
 
     Args:
@@ -48,7 +48,7 @@ def fetch_fakestore_carts(max_retries: int = 3) -> Optional[list[dict[str, Any]]
         List of cart dictionaries or None if all attempts fail.
     """
     url = "https://fakestoreapi.com/carts"
-    
+
     for attempt in range(max_retries):
         try:
             response = requests.get(url, headers=HEADERS, timeout=10)
@@ -61,7 +61,7 @@ def fetch_fakestore_carts(max_retries: int = 3) -> Optional[list[dict[str, Any]]
                 time.sleep(wait_time)
     return None
 
-def fetch_dummyjson_products(max_retries: int = 3) -> Optional[list[dict[str, Any]]]:
+def fetch_dummyjson_products(max_retries: int = 3) -> list[dict[str, Any]] | None:
     """Fallback: Fetch products from DummyJSON API with retry logic.
 
     Transforms DummyJSON format to match FakeStoreAPI structure.
@@ -73,7 +73,7 @@ def fetch_dummyjson_products(max_retries: int = 3) -> Optional[list[dict[str, An
         List of product dictionaries or None if all attempts fail.
     """
     url = "https://dummyjson.com/products?limit=20"
-    
+
     for attempt in range(max_retries):
         try:
             response = requests.get(url, headers=HEADERS, timeout=10)
@@ -101,7 +101,7 @@ def fetch_dummyjson_products(max_retries: int = 3) -> Optional[list[dict[str, An
                 time.sleep(wait_time)
     return None
 
-def fetch_dummyjson_carts(max_retries: int = 3) -> Optional[list[dict[str, Any]]]:
+def fetch_dummyjson_carts(max_retries: int = 3) -> list[dict[str, Any]] | None:
     """Fallback: Fetch carts from DummyJSON API with retry logic.
 
     Transforms DummyJSON format to match FakeStoreAPI structure.
@@ -113,7 +113,7 @@ def fetch_dummyjson_carts(max_retries: int = 3) -> Optional[list[dict[str, Any]]
         List of cart dictionaries or None if all attempts fail.
     """
     url = "https://dummyjson.com/carts?limit=20"
-    
+
     for attempt in range(max_retries):
         try:
             response = requests.get(url, headers=HEADERS, timeout=10)
@@ -172,51 +172,51 @@ def main() -> None:
     AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '').strip()
     AWS_REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1').strip()
     date_str = datetime.now().strftime("%Y/%m/%d")
-    
+
     print("=" * 70)
     print("🔄 E-Commerce Data Ingestion")
     print("=" * 70)
-    
+
     # Debug: Show configuration
     print("\n🔍 Configuration Check:")
     print(f"   S3_RAW_BUCKET: {'SET' if S3_BUCKET else '❌ NOT SET'}")
     print(f"   AWS_ACCESS_KEY_ID: {'SET' if AWS_ACCESS_KEY_ID else '❌ NOT SET'}")
     print(f"   AWS_SECRET_ACCESS_KEY: {'SET' if AWS_SECRET_ACCESS_KEY else '❌ NOT SET'}")
     print(f"   AWS_DEFAULT_REGION: {AWS_REGION if AWS_REGION else '❌ NOT SET'}")
-    
+
     # Fetch products with fallback
     print("\n📦 Fetching products...")
     products = fetch_fakestore_products()
-    
+
     if products is None:
         print("⚠️  FakeStoreAPI blocked. Trying DummyJSON...")
         products = fetch_dummyjson_products()
-    
+
     if products is None:
         print("❌ All product sources failed")
         raise Exception("Unable to fetch products from any API")
-    
+
     df_products = pd.DataFrame(products)
     print(f"✅ Fetched {len(df_products)} products")
-    
+
     # Fetch carts with fallback
     print("\n📋 Fetching carts/orders...")
     carts = fetch_fakestore_carts()
-    
+
     if carts is None:
         print("⚠️  FakeStoreAPI blocked. Trying DummyJSON...")
         carts = fetch_dummyjson_carts()
-    
+
     if carts is None:
         print("❌ All cart sources failed")
         raise Exception("Unable to fetch carts from any API")
-    
+
     df_carts = pd.DataFrame(carts)
     print(f"✅ Fetched {len(df_carts)} carts/orders")
-    
+
     # Save to S3 or local storage
     print("\n🗄️  Storage Decision:")
-    
+
     if not S3_BUCKET:
         print("   → S3_RAW_BUCKET not set. Using local storage only.")
         os.makedirs("data/raw/products", exist_ok=True)
@@ -225,7 +225,7 @@ def main() -> None:
         df_carts.to_parquet("data/raw/orders/orders.parquet", index=False)
         print("✅ Saved locally to data/raw/")
         return
-    
+
     if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
         print("   → AWS credentials not set. Using local storage only.")
         os.makedirs("data/raw/products", exist_ok=True)
@@ -234,12 +234,12 @@ def main() -> None:
         df_carts.to_parquet("data/raw/orders/orders.parquet", index=False)
         print("✅ Saved locally to data/raw/")
         return
-    
+
     # Try S3 upload
     print(f"   → Uploading to S3 bucket: {S3_BUCKET}")
     try:
         s3 = boto3.client('s3', region_name=AWS_REGION)
-        
+
         # Test S3 access
         try:
             s3.head_bucket(Bucket=S3_BUCKET)
@@ -248,7 +248,7 @@ def main() -> None:
             print(f"   ❌ Cannot access S3 bucket '{S3_BUCKET}': {e}")
             print("      Falling back to local storage...")
             raise e
-        
+
         # Upload products
         print("\n   Uploading products...")
         products_key = f"raw/products/{date_str}/products.parquet"
@@ -257,7 +257,7 @@ def main() -> None:
         s3.upload_file(temp_path, S3_BUCKET, products_key)
         os.remove(temp_path)
         print(f"   ✅ Uploaded: s3://{S3_BUCKET}/{products_key}")
-        
+
         # Upload carts
         print("   Uploading carts...")
         carts_key = f"raw/orders/{date_str}/orders.parquet"
@@ -266,7 +266,7 @@ def main() -> None:
         s3.upload_file(temp_path, S3_BUCKET, carts_key)
         os.remove(temp_path)
         print(f"   ✅ Uploaded: s3://{S3_BUCKET}/{carts_key}")
-        
+
     except Exception as e:
         print(f"\n   ⚠️  S3 upload failed: {e}")
         print("      Falling back to local storage...")
@@ -275,7 +275,7 @@ def main() -> None:
         os.makedirs("data/raw/orders", exist_ok=True)
         df_carts.to_parquet("data/raw/orders/orders.parquet", index=False)
         print("   ✅ Saved locally to data/raw/")
-    
+
     print("\n" + "=" * 70)
     print("✨ Data ingestion complete!")
     print("=" * 70)

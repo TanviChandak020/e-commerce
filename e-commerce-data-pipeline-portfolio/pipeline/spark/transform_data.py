@@ -1,7 +1,6 @@
 import os
 import subprocess
 import tempfile
-from typing import Optional
 
 import boto3
 from pyspark.sql import SparkSession
@@ -21,7 +20,7 @@ def create_spark_session() -> SparkSession:
 
 def download_from_s3(
     s3_client: "boto3.client", bucket: str, prefix: str
-) -> Optional[str]:
+) -> str | None:
     """Download latest parquet file matching prefix from S3.
 
     Args:
@@ -37,15 +36,15 @@ def download_from_s3(
         if 'Contents' not in response:
             print(f"⚠️  No files found at s3://{bucket}/{prefix}")
             return None
-        
+
         # Get the latest file
         files = sorted(response['Contents'], key=lambda x: x['LastModified'], reverse=True)
         if not files:
             return None
-        
+
         latest_file = files[0]['Key']
         print(f"📥 Reading from S3: s3://{bucket}/{latest_file}")
-        
+
         # Download to temp file
         temp_fd, temp_path = tempfile.mkstemp(suffix='.parquet')
         s3_client.download_file(bucket, latest_file, temp_path)
@@ -82,18 +81,18 @@ def transform_orders(spark: SparkSession, raw_path: str, processed_path: str) ->
     """
     try:
         print(f"Reading orders from: {raw_path}")
-        
+
         if not os.path.exists(raw_path):
             print(f"⚠️  No files found at {raw_path}")
             return
-        
+
         df = spark.read.parquet(raw_path)
         print(f"✅ Loaded {df.count()} orders")
-        
+
         # Check schema to determine format
         schema_str = str(df.schema)
         is_dummyjson = "discountedTotal" in schema_str or "discountPercentage" in schema_str
-        
+
         if is_dummyjson:
             print("🔎 Detected DummyJSON format")
             # DummyJSON: products array has {id, title, price, quantity, thumbnail, discountPercentage, discountedTotal, total}
@@ -116,9 +115,9 @@ def transform_orders(spark: SparkSession, raw_path: str, processed_path: str) ->
                     col("product.productId").alias("product_id"),
                     col("product.quantity").alias("quantity")
                 )
-        
+
         df_final = df_flattened.withColumn("processed_at", current_timestamp())
-        
+
         os.makedirs(processed_path, exist_ok=True)
         df_final.write.mode("overwrite").parquet(processed_path)
         print(f"✅ Transformed orders written to {processed_path}")
@@ -138,16 +137,16 @@ def transform_inventory(spark: SparkSession, raw_path: str, processed_path: str)
     """
     try:
         print(f"Reading inventory from: {raw_path}")
-        
+
         if not os.path.exists(raw_path):
             print(f"⚠️  No files found at {raw_path}")
             return
-        
+
         df = spark.read.parquet(raw_path)
         print(f"✅ Loaded {df.count()} inventory items")
-        
+
         df_final = df.withColumn("processed_at", current_timestamp())
-        
+
         os.makedirs(processed_path, exist_ok=True)
         df_final.write.mode("overwrite").parquet(processed_path)
         print(f"✅ Transformed inventory written to {processed_path}")
@@ -162,19 +161,19 @@ def main() -> None:
     S3_RAW_BUCKET = os.getenv('S3_RAW_BUCKET', '').strip()
     S3_PROCESSED_BUCKET = os.getenv('S3_PROCESSED_BUCKET', '').strip()
     AWS_REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1').strip()
-    
+
     print("=" * 70)
     print("🔄 Spark Data Transformation")
     print("=" * 70)
     print("\n🔍 Configuration:")
     print(f"   S3_RAW_BUCKET: {'✅ SET' if S3_RAW_BUCKET else '❌ NOT SET'}")
     print(f"   S3_PROCESSED_BUCKET: {'✅ SET' if S3_PROCESSED_BUCKET else '❌ NOT SET'}")
-    
+
     try:
         if S3_RAW_BUCKET and S3_PROCESSED_BUCKET:
             print("\n🔄 Using S3 for data transformation (boto3 + local processing)...\n")
             s3_client = boto3.client('s3', region_name=AWS_REGION)
-            
+
             # Download and transform orders
             raw_orders_key = "raw/orders/"
             orders_file = download_from_s3(s3_client, S3_RAW_BUCKET, raw_orders_key)
@@ -182,7 +181,7 @@ def main() -> None:
                 try:
                     transform_orders(spark, orders_file, "data/processed/orders")
                     # Upload processed orders
-                    result = subprocess.run(['find', 'data/processed/orders', '-name', 'part-*.parquet'], 
+                    result = subprocess.run(['find', 'data/processed/orders', '-name', 'part-*.parquet'],
                                           capture_output=True, text=True)
                     if result.stdout.strip():
                         processed_file = result.stdout.strip().split('\n')[0]
@@ -192,7 +191,7 @@ def main() -> None:
                 finally:
                     if os.path.exists(orders_file):
                         os.remove(orders_file)
-            
+
             # Download and transform products (saved as inventory)
             raw_products_key = "raw/products/"
             products_file = download_from_s3(s3_client, S3_RAW_BUCKET, raw_products_key)
@@ -208,7 +207,7 @@ def main() -> None:
 
                     # Upload processed products
                     result = subprocess.run(
-                        ["find", "data/processed/products", "-name", "part-*.parquet"], 
+                        ["find", "data/processed/products", "-name", "part-*.parquet"],
                                           capture_output=True, text=True)
                     if result.stdout.strip():
                         processed_file = result.stdout.strip().split('\n')[0]
@@ -218,7 +217,7 @@ def main() -> None:
                 finally:
                     if os.path.exists(products_file):
                         os.remove(products_file)
-        
+
         else:
             print("\n🔄 Using local filesystem for data transformation...\n")
             transform_orders(
@@ -231,7 +230,7 @@ def main() -> None:
                 "data/raw/inventory/inventory.csv",
                 "data/processed/inventory"
             )
-        
+
         print("\n" + "=" * 70)
         print("✨ Data transformation complete!")
         print("=" * 70)
