@@ -24,6 +24,11 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
       
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev libffi-dev python3-dev
+      
       - name: Cache pip dependencies
         uses: actions/cache@v3
         with:
@@ -32,7 +37,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
       
       - name: Verify installation
@@ -50,6 +55,11 @@ jobs:
         with:
           python-version: '3.12'
       
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev libffi-dev python3-dev
+      
       - name: Cache pip dependencies
         uses: actions/cache@v3
         with:
@@ -58,7 +68,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
       
       - name: Fetch API data
@@ -86,6 +96,11 @@ jobs:
         with:
           python-version: '3.12'
       
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev libffi-dev python3-dev
+      
       - name: Cache pip dependencies
         uses: actions/cache@v3
         with:
@@ -94,7 +109,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
       
       - name: Generate inventory
@@ -122,6 +137,11 @@ jobs:
         with:
           python-version: '3.12'
       
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev libffi-dev python3-dev
+      
       - name: Cache pip dependencies
         uses: actions/cache@v3
         with:
@@ -130,7 +150,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
       
       - name: Transform data with Spark
@@ -155,6 +175,11 @@ jobs:
         with:
           python-version: '3.12'
       
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev libffi-dev python3-dev
+      
       - name: Cache pip dependencies
         uses: actions/cache@v3
         with:
@@ -163,7 +188,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
       
       - name: Load data to Snowflake
@@ -215,6 +240,11 @@ jobs:
         with:
           python-version: '3.12'
       
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev libffi-dev python3-dev
+      
       - name: Cache pip dependencies
         uses: actions/cache@v3
         with:
@@ -223,7 +253,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
       
       - name: Set up dbt profiles
