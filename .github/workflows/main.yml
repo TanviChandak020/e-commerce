@@ -71,8 +71,8 @@ jobs:
             echo "⚠️  Skipped: AWS secrets not configured"
             exit 0
           fi
-          export PYTHONPATH=${{ github.workspace }}/pipeline:$PYTHONPATH
-          python pipeline/ingestion/fetch_api_data.py
+          export PYTHONPATH=${{ github.workspace }}/e-commerce-data-pipeline-portfolio/pipeline:$PYTHONPATH
+          python e-commerce-data-pipeline-portfolio/pipeline/ingestion/fetch_api_data.py
 
   ingest-inventory:
     runs-on: ubuntu-latest
@@ -107,8 +107,8 @@ jobs:
             echo "⚠️  Skipped: AWS secrets not configured"
             exit 0
           fi
-          export PYTHONPATH=${{ github.workspace }}/pipeline:$PYTHONPATH
-          python pipeline/ingestion/generate_inventory.py
+          export PYTHONPATH=${{ github.workspace }}/e-commerce-data-pipeline-portfolio/pipeline:$PYTHONPATH
+          python e-commerce-data-pipeline-portfolio/pipeline/ingestion/generate_inventory.py
 
   summary:
     runs-on: ubuntu-latest
