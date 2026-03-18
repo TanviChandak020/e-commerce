@@ -28,6 +28,7 @@ def load_to_snowflake() -> bool:
     aws_key = os.getenv('AWS_ACCESS_KEY_ID', '').strip()
     aws_secret = os.getenv('AWS_SECRET_ACCESS_KEY', '').strip()
     aws_region = os.getenv('AWS_DEFAULT_REGION', 'us-east-1').strip()
+    snowflake_region = os.getenv('SNOWFLAKE_REGION', 'us-east-1').strip()
 
     if not all([user, password, account, warehouse, database]):
         print('⚠️  Snowflake credentials incomplete. Skipping Snowflake load.')
@@ -45,7 +46,7 @@ def load_to_snowflake() -> bool:
             account=account,
             warehouse=warehouse,
             database=database,
-            region=aws_region
+            region=snowflake_region
         )
         print("✅ Connected to Snowflake")
 
