@@ -1,11 +1,23 @@
-import pandas as pd
-import numpy as np
-import boto3
-from datetime import datetime
 import os
+from datetime import datetime
 
-def generate_inventory_data(num_products=20):
-    """Generate synthetic inventory data"""
+import boto3
+import numpy as np
+import pandas as pd
+
+
+def generate_inventory_data(num_products: int = 20) -> pd.DataFrame:
+    """Generate synthetic inventory data.
+
+    Creates a DataFrame with product inventory information including
+    supplier ID, stock quantity, and restock threshold.
+
+    Args:
+        num_products: Number of synthetic products to generate.
+
+    Returns:
+        DataFrame with inventory data.
+    """
     data = {
         'product_id': range(1, num_products + 1),
         'supplier_id': np.random.randint(100, 105, size=num_products),
@@ -15,7 +27,8 @@ def generate_inventory_data(num_products=20):
     }
     return pd.DataFrame(data)
 
-def main():
+def main() -> None:
+    """Generate and upload inventory data to S3."""
     S3_BUCKET = os.getenv('S3_RAW_BUCKET', '').strip()
     date_str = datetime.now().strftime("%Y/%m/%d")
     

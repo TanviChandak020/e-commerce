@@ -1,10 +1,20 @@
-"""Load processed data from S3 to Snowflake"""
-import snowflake.connector
+"""Load processed data from S3 to Snowflake."""
 import os
 import sys
 
-def load_to_snowflake():
-    """Load data from S3 to Snowflake"""
+import snowflake.connector
+
+
+def load_to_snowflake() -> bool:
+    """Load data from S3 to Snowflake.
+
+    Reads processed data (orders and products) from S3 and loads them
+    into Snowflake tables using COPY INTO statements.
+
+    Returns:
+        True if successful or if credentials are missing (graceful exit),
+        raises exception if actual error occurs.
+    """
     
     # Get Snowflake credentials
     user = os.getenv('SNOWFLAKE_USER', '').strip()
@@ -108,7 +118,7 @@ def load_to_snowflake():
         cursor.execute("SELECT COUNT(*) FROM RAW.PRODUCTS_RAW")
         products_count = cursor.fetchone()[0]
         
-        print(f"\n📊 Data Summary:")
+        print("\n📊 Data Summary:")
         print(f"   Orders: {orders_count} rows")
         print(f"   Products: {products_count} rows")
         

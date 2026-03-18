@@ -1,22 +1,37 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, current_timestamp, to_date, explode
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, ArrayType
 import os
-import glob
-import boto3
-from io import BytesIO
-import tempfile
 import subprocess
+import tempfile
+from typing import Optional
 
-def create_spark_session():
-    return SparkSession.builder \
+import boto3
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, current_timestamp, explode, to_date
+
+
+def create_spark_session() -> SparkSession:
+    """Create and configure a Spark session.
+
+    Returns:
+        SparkSession: Configured Spark session.
+    """ \
         .appName("EcommerceDataTransformation") \
         .config("spark.driver.memory", "2g") \
         .config("spark.executor.memory", "2g") \
         .getOrCreate()
 
-def download_from_s3(s3_client, bucket, prefix):
-    """Download latest parquet file matching prefix from S3"""
+def download_from_s3(
+    s3_client: "boto3.client", bucket: str, prefix: str
+) -> Optional[str]:
+    """Download latest parquet file matching prefix from S3.
+
+    Args:
+        s3_client: Boto3 S3 client.
+        bucket: S3 bucket name.
+        prefix: S3 key prefix to search.
+
+    Returns:
+        Path to downloaded file or None if not found.
+    """
     try:
         response = s3_client.list_objects_v2(Bucket=bucket, Prefix=prefix)
         if 'Contents' not in response:
@@ -39,8 +54,17 @@ def download_from_s3(s3_client, bucket, prefix):
         print(f"❌ Error downloading from S3: {e}")
         return None
 
-def upload_to_s3(s3_client, bucket, local_path, s3_key):
-    """Upload local parquet file to S3"""
+def upload_to_s3(
+    s3_client: "boto3.client", bucket: str, local_path: str, s3_key: str
+) -> None:
+    """Upload local parquet file to S3.
+
+    Args:
+        s3_client: Boto3 S3 client.
+        bucket: S3 bucket name.
+        local_path: Local file path.
+        s3_key: S3 destination key.
+    """
     try:
         s3_client.upload_file(local_path, bucket, s3_key)
         print(f"📤 Uploaded to S3: s3://{bucket}/{s3_key}")
@@ -48,8 +72,14 @@ def upload_to_s3(s3_client, bucket, local_path, s3_key):
         print(f"❌ Error uploading to S3: {e}")
         raise
 
-def transform_orders(spark, raw_path, processed_path):
-    """Transform raw orders data - handles both FakeStore and DummyJSON formats"""
+def transform_orders(spark: SparkSession, raw_path: str, processed_path: str) -> None:
+    """Transform raw orders data - handles both FakeStore and DummyJSON formats.
+
+    Args:
+        spark: Spark session.
+        raw_path: Path to raw parquet data.
+        processed_path: Output path for processed data.
+    """
     try:
         print(f"Reading orders from: {raw_path}")
         
@@ -98,8 +128,14 @@ def transform_orders(spark, raw_path, processed_path):
         traceback.print_exc()
         raise
 
-def transform_inventory(spark, raw_path, processed_path):
-    """Transform raw inventory data"""
+def transform_inventory(spark: SparkSession, raw_path: str, processed_path: str) -> None:
+    """Transform raw inventory data.
+
+    Args:
+        spark: Spark session.
+        raw_path: Path to raw parquet data.
+        processed_path: Output path for processed data.
+    """
     try:
         print(f"Reading inventory from: {raw_path}")
         
@@ -119,9 +155,10 @@ def transform_inventory(spark, raw_path, processed_path):
         print(f"⚠️  Error transforming inventory: {e}")
         raise
 
-def main():
+def main() -> None:
+    """Orchestrate data transformation from S3, process with Spark, upload back."""
     spark = create_spark_session()
-    
+
     S3_RAW_BUCKET = os.getenv('S3_RAW_BUCKET', '').strip()
     S3_PROCESSED_BUCKET = os.getenv('S3_PROCESSED_BUCKET', '').strip()
     AWS_REGION = os.getenv('AWS_DEFAULT_REGION', 'us-east-1').strip()
@@ -129,17 +166,17 @@ def main():
     print("=" * 70)
     print("🔄 Spark Data Transformation")
     print("=" * 70)
-    print(f"\n🔍 Configuration:")
+    print("\n🔍 Configuration:")
     print(f"   S3_RAW_BUCKET: {'✅ SET' if S3_RAW_BUCKET else '❌ NOT SET'}")
     print(f"   S3_PROCESSED_BUCKET: {'✅ SET' if S3_PROCESSED_BUCKET else '❌ NOT SET'}")
     
     try:
         if S3_RAW_BUCKET and S3_PROCESSED_BUCKET:
-            print(f"\n🔄 Using S3 for data transformation (boto3 + local processing)...\n")
+            print("\n🔄 Using S3 for data transformation (boto3 + local processing)...\n")
             s3_client = boto3.client('s3', region_name=AWS_REGION)
             
             # Download and transform orders
-            raw_orders_key = f"raw/orders/"
+            raw_orders_key = "raw/orders/"
             orders_file = download_from_s3(s3_client, S3_RAW_BUCKET, raw_orders_key)
             if orders_file:
                 try:
@@ -157,7 +194,7 @@ def main():
                         os.remove(orders_file)
             
             # Download and transform products (saved as inventory)
-            raw_products_key = f"raw/products/"
+            raw_products_key = "raw/products/"
             products_file = download_from_s3(s3_client, S3_RAW_BUCKET, raw_products_key)
             if products_file:
                 try:
@@ -167,11 +204,11 @@ def main():
                     df_products_final = df_products.withColumn("processed_at", current_timestamp())
                     os.makedirs("data/processed/products", exist_ok=True)
                     df_products_final.write.mode("overwrite").parquet("data/processed/products")
-                    print(f"✅ Transformed products written to data/processed/products")
-                    
+                    print("✅ Transformed products written to data/processed/products")
+
                     # Upload processed products
-                    import subprocess
-                    result = subprocess.run(['find', 'data/processed/products', '-name', 'part-*.parquet'], 
+                    result = subprocess.run(
+                        ["find", "data/processed/products", "-name", "part-*.parquet"], 
                                           capture_output=True, text=True)
                     if result.stdout.strip():
                         processed_file = result.stdout.strip().split('\n')[0]
@@ -183,7 +220,7 @@ def main():
                         os.remove(products_file)
         
         else:
-            print(f"\n🔄 Using local filesystem for data transformation...\n")
+            print("\n🔄 Using local filesystem for data transformation...\n")
             transform_orders(
                 spark,
                 "data/raw/orders/orders.parquet",
