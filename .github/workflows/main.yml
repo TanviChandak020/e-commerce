@@ -78,9 +78,14 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          S3_RAW_BUCKET: ${{ secrets.S3_RAW_BUCKET }}
         run: |
           if [ -z "$AWS_ACCESS_KEY_ID" ]; then
             echo "⚠️  Skipped: AWS secrets not configured"
+            exit 0
+          fi
+          if [ -z "$S3_RAW_BUCKET" ]; then
+            echo "⚠️  Skipped: S3_RAW_BUCKET not configured"
             exit 0
           fi
           export PYTHONPATH=${{ github.workspace }}/e-commerce-data-pipeline-portfolio/pipeline:$PYTHONPATH
@@ -120,9 +125,14 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          S3_RAW_BUCKET: ${{ secrets.S3_RAW_BUCKET }}
         run: |
           if [ -z "$AWS_ACCESS_KEY_ID" ]; then
             echo "⚠️  Skipped: AWS secrets not configured"
+            exit 0
+          fi
+          if [ -z "$S3_RAW_BUCKET" ]; then
+            echo "⚠️  Skipped: S3_RAW_BUCKET not configured"
             exit 0
           fi
           export PYTHONPATH=${{ github.workspace }}/e-commerce-data-pipeline-portfolio/pipeline:$PYTHONPATH

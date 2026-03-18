@@ -35,12 +35,19 @@ def fetch_fakestore_data(endpoint, max_retries=3):
 
 def upload_to_s3(df, bucket, key):
     """Upload DataFrame to S3 as Parquet"""
-    s3 = boto3.client('s3')
-    # In a real scenario, we'd use io.BytesIO to avoid local disk
-    temp_path = f"/tmp/{os.path.basename(key)}"
-    df.to_parquet(temp_path, index=False)
-    s3.upload_file(temp_path, bucket, key)
-    os.remove(temp_path)
+    try:
+        s3 = boto3.client('s3')
+        # In a real scenario, we'd use io.BytesIO to avoid local disk
+        temp_path = f"/tmp/{os.path.basename(key)}"
+        df.to_parquet(temp_path, index=False)
+        s3.upload_file(temp_path, bucket, key)
+        os.remove(temp_path)
+        print(f"✅ Uploaded to S3: {key}")
+    except Exception as e:
+        print(f"⚠️  Failed to upload to S3: {e}")
+        print(f"   Bucket: {bucket}")
+        print(f"   Key: {key}")
+        raise
 
 def main():
     # Configuration
