@@ -45,8 +45,7 @@ def load_to_snowflake() -> bool:
             password=password,
             account=account,
             warehouse=warehouse,
-            database=database,
-            region=snowflake_region
+            database=database
         )
         print("✅ Connected to Snowflake")
 
