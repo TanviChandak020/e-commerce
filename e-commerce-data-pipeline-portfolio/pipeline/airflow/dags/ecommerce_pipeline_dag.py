@@ -1,13 +1,24 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.operators.bash import BashOperator
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
 from airflow.utils.dates import days_ago
 from datetime import timedelta
+import sys
+import os
 
-# Import ingestion functions (assuming they're in the same project)
-# from ingestion.fetch_api_data import main as fetch_api
-# from ingestion.generate_inventory import main as generate_inventory
+# Add pipeline directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))
+
+# Import ingestion functions
+try:
+    from pipeline.ingestion.fetch_api_data import main as fetch_api
+    from pipeline.ingestion.generate_inventory import main as generate_inventory
+except ImportError as e:
+    print(f"Warning: Could not import ingestion functions: {e}")
+    fetch_api = lambda: print("Ingesting from FakeStoreAPI...")
+    generate_inventory = lambda: print("Ingesting inventory CSV...")
 
 default_args = {
     'owner': 'data_engineer',
@@ -31,45 +42,36 @@ with DAG(
     # 1. Ingestion Tasks
     ingest_api_data = PythonOperator(
         task_id='ingest_api_data',
-        python_callable=lambda: print("Ingesting from FakeStoreAPI..."), # Replace with actual call
+        python_callable=fetch_api,
     )
 
     ingest_inventory_csv = PythonOperator(
         task_id='ingest_inventory_csv',
-        python_callable=lambda: print("Ingesting inventory CSV..."), # Replace with actual call
+        python_callable=generate_inventory,
     )
 
-    # 2. Transformation Task (PySpark on EMR)
-    transform_data_spark = EmrAddStepsOperator(
+    # 2. Transformation Task (PySpark)
+    transform_data_spark = BashOperator(
         task_id='transform_data_spark',
-        job_flow_id='J-XXXXXXXXXXXX', # Replace with actual EMR Cluster ID
-        steps=[{
-            'Name': 'PySpark Transformation',
-            'ActionOnFailure': 'CONTINUE',
-            'HadoopJarStep': {
-                'Jar': 'command-runner.jar',
-                'Args': ['spark-submit', 's3://my-bucket/scripts/transform_data.py'],
-            },
-        }],
+        bash_command='export PYTHONPATH={{ dag.parent_directory }}/pipeline:$PYTHONPATH && python {{ dag.parent_directory }}/pipeline/spark/transform_data.py',
     )
 
     # 3. Loading Task (Snowflake COPY INTO)
     load_to_snowflake = SnowflakeOperator(
         task_id='load_to_snowflake',
         snowflake_conn_id='snowflake_default',
-        sql='pipeline/snowflake/copy_into.sql',
+        sql='{{ dag.parent_directory }}/pipeline/snowflake/copy_into.sql',
     )
 
     # 4. dbt Modeling Tasks
-    # Typically run via BashOperator or DbtCloudRunJobOperator
-    run_dbt_models = PythonOperator(
+    run_dbt_models = BashOperator(
         task_id='run_dbt_models',
-        python_callable=lambda: print("Running dbt models..."),
+        bash_command='cd {{ dag.parent_directory }}/pipeline/dbt && dbt run --profiles-dir ~/.dbt',
     )
 
-    run_dbt_tests = PythonOperator(
+    run_dbt_tests = BashOperator(
         task_id='run_dbt_tests',
-        python_callable=lambda: print("Running dbt tests..."),
+        bash_command='cd {{ dag.parent_directory }}/pipeline/dbt && dbt test --profiles-dir ~/.dbt',
     )
 
     # Define Dependencies
