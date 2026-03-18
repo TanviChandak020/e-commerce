@@ -1,0 +1,68 @@
+name: Code Quality Checks
+
+on:
+  push:
+    branches: [main, develop, refactor/**]
+    paths:
+      - "e-commerce-data-pipeline-portfolio/pipeline/**"
+      - "*.toml"
+      - ".github/workflows/code-quality.yml"
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run ruff lint
+        run: ruff check e-commerce-data-pipeline-portfolio/pipeline
+
+      - name: Run ruff format check
+        run: ruff format --check e-commerce-data-pipeline-portfolio/pipeline
+
+      - name: Run black format check
+        run: black --check e-commerce-data-pipeline-portfolio/pipeline
+
+      - name: Run isort import check
+        run: isort --check-only e-commerce-data-pipeline-portfolio/pipeline
+
+      - name: Run mypy type check
+        run: mypy e-commerce-data-pipeline-portfolio/pipeline --ignore-missing-imports --config-file=pyproject.toml
+        continue-on-error: true
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+
+      - name: Check for vulnerable dependencies
+        run: pip-audit
+        continue-on-error: true
