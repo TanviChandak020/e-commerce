@@ -12,11 +12,13 @@ def create_spark_session() -> SparkSession:
 
     Returns:
         SparkSession: Configured Spark session.
-    """ \
-        .appName("EcommerceDataTransformation") \
-        .config("spark.driver.memory", "2g") \
-        .config("spark.executor.memory", "2g") \
+    """
+    return (
+        SparkSession.builder.appName("EcommerceDataTransformation")
+        .config("spark.driver.memory", "2g")
+        .config("spark.executor.memory", "2g")
         .getOrCreate()
+    )
 
 def download_from_s3(
     s3_client: "boto3.client", bucket: str, prefix: str
