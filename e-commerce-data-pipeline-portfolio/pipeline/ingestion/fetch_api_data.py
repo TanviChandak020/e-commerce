@@ -51,27 +51,53 @@ def upload_to_s3(df, bucket, key):
 
 def main():
     # Configuration
-    S3_BUCKET = os.getenv('S3_RAW_BUCKET', 'my-ecommerce-raw-zone')
+    S3_BUCKET = os.getenv('S3_RAW_BUCKET', '').strip()
     date_str = datetime.now().strftime("%Y/%m/%d")
     
     try:
         print("Fetching products...")
         products = fetch_fakestore_data('products')
         df_products = pd.DataFrame(products)
-        upload_to_s3(df_products, S3_BUCKET, f"raw/products/{date_str}/products.parquet")
-        print(f"✅ Loaded {len(df_products)} products to S3")
+        print(f"✅ Fetched {len(df_products)} products")
+        
+        if S3_BUCKET:
+            try:
+                upload_to_s3(df_products, S3_BUCKET, f"raw/products/{date_str}/products.parquet")
+            except Exception as e:
+                print(f"⚠️  S3 upload failed: {e}. Saving locally instead...")
+                os.makedirs("data/raw/products", exist_ok=True)
+                df_products.to_parquet(f"data/raw/products/products.parquet")
+                print(f"✅ Saved products locally: data/raw/products/products.parquet")
+        else:
+            print("⚠️  S3_RAW_BUCKET not configured. Saving locally...")
+            os.makedirs("data/raw/products", exist_ok=True)
+            df_products.to_parquet(f"data/raw/products/products.parquet")
+            print(f"✅ Saved products locally: data/raw/products/products.parquet")
     except Exception as e:
-        print(f"⚠️  Failed to fetch/upload products: {e}")
+        print(f"⚠️  Failed to fetch products: {e}")
         return
     
     try:
         print("Fetching orders (carts)...")
         carts = fetch_fakestore_data('carts')
         df_carts = pd.DataFrame(carts)
-        upload_to_s3(df_carts, S3_BUCKET, f"raw/orders/{date_str}/orders.parquet")
-        print(f"✅ Loaded {len(df_carts)} orders to S3")
+        print(f"✅ Fetched {len(df_carts)} orders")
+        
+        if S3_BUCKET:
+            try:
+                upload_to_s3(df_carts, S3_BUCKET, f"raw/orders/{date_str}/orders.parquet")
+            except Exception as e:
+                print(f"⚠️  S3 upload failed: {e}. Saving locally instead...")
+                os.makedirs("data/raw/orders", exist_ok=True)
+                df_carts.to_parquet(f"data/raw/orders/orders.parquet")
+                print(f"✅ Saved orders locally: data/raw/orders/orders.parquet")
+        else:
+            print("⚠️  S3_RAW_BUCKET not configured. Saving locally...")
+            os.makedirs("data/raw/orders", exist_ok=True)
+            df_carts.to_parquet(f"data/raw/orders/orders.parquet")
+            print(f"✅ Saved orders locally: data/raw/orders/orders.parquet")
     except Exception as e:
-        print(f"⚠️  Failed to fetch/upload orders: {e}")
+        print(f"⚠️  Failed to fetch orders: {e}")
         return
     
     print("✅ Ingestion complete.")
