@@ -16,11 +16,7 @@ def generate_inventory_data(num_products=20):
     return pd.DataFrame(data)
 
 def main():
-    S3_BUCKET = os.getenv('S3_RAW_BUCKET', 'my-ecommerce-raw-zone')
-    
-    if S3_BUCKET == 'my-ecommerce-raw-zone':
-        print("⚠️  Using default bucket name. Set S3_RAW_BUCKET environment variable for production.")
-    
+    S3_BUCKET = os.getenv('S3_RAW_BUCKET', '').strip()
     date_str = datetime.now().strftime("%Y/%m/%d")
     
     print("Generating inventory feed...")
@@ -31,6 +27,17 @@ def main():
     temp_path = "/tmp/inventory_feed.csv"
     df_inventory.to_csv(temp_path, index=False)
     
+    if not S3_BUCKET:
+        print("⚠️  S3_RAW_BUCKET not configured. Saving locally instead.")
+        local_dir = "data/raw/inventory"
+        os.makedirs(local_dir, exist_ok=True)
+        local_path = f"{local_dir}/inventory.csv"
+        df_inventory.to_csv(local_path, index=False)
+        print(f"✅ Saved inventory locally: {local_path}")
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        return
+    
     try:
         s3 = boto3.client('s3')
         s3.upload_file(temp_path, S3_BUCKET, f"raw/inventory/{date_str}/inventory.csv")
@@ -38,12 +45,16 @@ def main():
         print(f"✅ Uploaded inventory to S3: {S3_BUCKET}/raw/inventory/{date_str}/inventory.csv")
         print("✅ Inventory ingestion complete.")
     except Exception as e:
-        print(f"⚠️  Failed to upload inventory to S3: {e}")
+        print(f"⚠️  Failed to upload to S3: {e}")
         print(f"   Bucket: {S3_BUCKET}")
-        print(f"   Please ensure the S3 bucket exists and credentials are correct")
+        print("   Saving locally as fallback...")
+        local_dir = "data/raw/inventory"
+        os.makedirs(local_dir, exist_ok=True)
+        local_path = f"{local_dir}/inventory.csv"
+        df_inventory.to_csv(local_path, index=False)
+        print(f"✅ Saved inventory locally: {local_path}")
         if os.path.exists(temp_path):
             os.remove(temp_path)
-        raise
 
 if __name__ == "__main__":
     main()
