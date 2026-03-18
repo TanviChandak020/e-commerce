@@ -38,7 +38,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install -r requirements.txt
+          pip install --upgrade cryptography pyarrow
+          pip install -r requirements.txt --no-cache-dir
       
       - name: Verify installation
         run: python -c "import pandas, pyspark; print('✅ Dependencies installed')"
@@ -69,7 +70,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install -r requirements.txt
+          pip install --upgrade cryptography pyarrow
+          pip install -r requirements.txt --no-cache-dir
       
       - name: Fetch API data
         env:
@@ -110,7 +112,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install -r requirements.txt
+          pip install --upgrade cryptography pyarrow
+          pip install -r requirements.txt --no-cache-dir
       
       - name: Generate inventory
         env:
@@ -151,7 +154,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install -r requirements.txt
+          pip install --upgrade cryptography pyarrow
+          pip install -r requirements.txt --no-cache-dir
       
       - name: Transform data with Spark
         env:
