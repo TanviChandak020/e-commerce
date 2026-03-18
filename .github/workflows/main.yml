@@ -173,6 +173,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           S3_RAW_BUCKET: ${{ secrets.S3_RAW_BUCKET }}
+          S3_PROCESSED_BUCKET: ${{ secrets.S3_PROCESSED_BUCKET }}
         run: |
           export PYTHONPATH=${{ github.workspace }}/e-commerce-data-pipeline-portfolio/pipeline:$PYTHONPATH
           python e-commerce-data-pipeline-portfolio/pipeline/spark/transform_data.py
