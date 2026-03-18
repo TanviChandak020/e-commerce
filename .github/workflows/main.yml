@@ -80,18 +80,6 @@ jobs:
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           S3_RAW_BUCKET: ${{ secrets.S3_RAW_BUCKET }}
         run: |
-          echo "🔍 Configuration check:"
-          echo "AWS_ACCESS_KEY_ID: $([ -z "$AWS_ACCESS_KEY_ID" ] && echo 'NOT SET' || echo 'SET')"
-          echo "AWS_SECRET_ACCESS_KEY: $([ -z "$AWS_SECRET_ACCESS_KEY" ] && echo 'NOT SET' || echo 'SET')"
-          echo "AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-NOT SET}"
-          echo "S3_RAW_BUCKET: ${S3_RAW_BUCKET:-NOT SET}"
-          echo ""
-          
-          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
-            echo "⚠️  AWS credentials not configured - using local storage"
-            exit 0
-          fi
-          
           export PYTHONPATH=${{ github.workspace }}/e-commerce-data-pipeline-portfolio/pipeline:$PYTHONPATH
           python e-commerce-data-pipeline-portfolio/pipeline/ingestion/fetch_api_data.py
 
@@ -131,18 +119,6 @@ jobs:
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           S3_RAW_BUCKET: ${{ secrets.S3_RAW_BUCKET }}
         run: |
-          echo "🔍 Configuration check:"
-          echo "AWS_ACCESS_KEY_ID: $([ -z "$AWS_ACCESS_KEY_ID" ] && echo 'NOT SET' || echo 'SET')"
-          echo "AWS_SECRET_ACCESS_KEY: $([ -z "$AWS_SECRET_ACCESS_KEY" ] && echo 'NOT SET' || echo 'SET')"
-          echo "AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-NOT SET}"
-          echo "S3_RAW_BUCKET: ${S3_RAW_BUCKET:-NOT SET}"
-          echo ""
-          
-          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
-            echo "⚠️  AWS credentials not configured - using local storage"
-            exit 0
-          fi
-          
           export PYTHONPATH=${{ github.workspace }}/e-commerce-data-pipeline-portfolio/pipeline:$PYTHONPATH
           python e-commerce-data-pipeline-portfolio/pipeline/ingestion/generate_inventory.py
 
